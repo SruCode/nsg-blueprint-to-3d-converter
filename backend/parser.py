@@ -2,7 +2,11 @@ import cv2
 import json
 import os
 
-def process_blueprint(image_path="sample.png"):
+# Base directory for relative file loading
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_IMAGE = os.path.join(BASE_DIR, "sample.png")
+
+def process_blueprint(image_path=DEFAULT_IMAGE):
     if not os.path.exists(image_path):
         print(f"Error: {image_path} not found")
         return []
@@ -18,7 +22,6 @@ def process_blueprint(image_path="sample.png"):
     walls_data = []
     if lines is not None:
         for line in lines:
-            # Safe unpack format (1D aur 2D array dono handle karega)
             coords = line[0] if len(line.shape) > 1 else line
             x1, y1, x2, y2 = coords
             walls_data.append({

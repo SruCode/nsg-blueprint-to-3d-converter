@@ -1,7 +1,8 @@
-import * as THREE from './libs/three.module.js';
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 
 const WALL_HEIGHT = 3.0;     // 3 meters tall
 const WALL_THICKNESS = 0.2;  // 0.2 meters thick
+const SCALE_FACTOR = 0.02;   // Converts image pixels to 3D scene meters
 
 const container = document.getElementById('threejs-container') || document.body;
 
@@ -54,10 +55,11 @@ export function loadWalls(wallData) {
   }
 
   wallData.forEach(wall => {
-    const x1 = wall.x1;
-    const z1 = wall.y1; // 2D image Y -> 3D Z plane
-    const x2 = wall.x2;
-    const z2 = wall.y2;
+    // Apply scale factor to translate image pixel coordinates into meters
+    const x1 = wall.x1 * SCALE_FACTOR;
+    const z1 = wall.y1 * SCALE_FACTOR; // 2D image Y -> 3D Z plane
+    const x2 = wall.x2 * SCALE_FACTOR;
+    const z2 = wall.y2 * SCALE_FACTOR;
 
     const dx = x2 - x1;
     const dz = z2 - z1;
@@ -80,8 +82,38 @@ export function loadWalls(wallData) {
   });
 }
 
-// 7. Load local dummy data
-fetch('./js/walls.json')
-  .then(res => res.json())
-  .then(data => loadWalls(data))
-  .catch(err => console.error("Error loading initial walls.json:", err));
+// 7. Render Loop
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+// 8. Fetch from Flask Backend
+async function fetchWallsAndRender() {
+  try {
+    const response = await fetch('http://127.0.0.1:5000/get-walls');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const wallData = await response.json();
+    console.log("Wall data fetched successfully from Flask:", wallData);
+
+    // Directly pass the coordinates to Three.js wall builder
+    loadWalls(wallData);
+
+  } catch (error) {
+    console.error("Error connecting to backend, loading fallback walls.json:", error);
+    
+    // Fallback to local dummy JSON if backend is offline
+    fetch('./js/walls.json')
+      .then(res => res.json())
+      .then(data => loadWalls(data))
+      .catch(err => console.error("Error loading initial walls.json:", err));
+  }
+}
+
+// Trigger fetch when window loads
+window.addEventListener('DOMContentLoaded', fetchWallsAndRender);
