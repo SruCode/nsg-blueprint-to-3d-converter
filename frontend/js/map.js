@@ -14,8 +14,6 @@
 
   /* ----------------------------------------------------------------
      Default tactical coordinates — Delhi NSG HQ sector.
-     Swap this constant (or wire it to a config panel) to retarget
-     the map to a different operational area.
   ---------------------------------------------------------------- */
   var DEFAULT_COORDS = [28.5422, 77.1260];
   var DEFAULT_ZOOM = 16;
@@ -62,16 +60,14 @@
     });
 
     /* --------------------------------------------------------------
-       Tile layer — standard OSM raster tiles.
-       For a true offline deployment, swap the urlTemplate below for
-       a local tile server / MBTiles endpoint, e.g.:
-         L.tileLayer('http://127.0.0.1:8080/tiles/{z}/{x}/{y}.png', {...})
+       Tile layer & local fallback display.
     -------------------------------------------------------------- */
-    var tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    });
-    tileLayer.addTo(map);
+    /* Adjust path based on where assets folder lives relative to frontend/ */
+    var imagePath = '../assets/map_tiles/27.png'; // or '/nsg-blueprint-to-3d-converter/assets/map_tiles/27.png'
+
+    var bounds = [[28.5350, 77.1200], [28.5500, 77.1350]];
+    L.imageOverlay(imagePath, bounds).addTo(map);
+    map.fitBounds(bounds);  
 
     /* --------------------------------------------------------------
        Target building marker with a tactical popup readout.
@@ -92,9 +88,7 @@
     );
 
     /* --------------------------------------------------------------
-       Expose instance + helper globally so other scripts (app.js,
-       or the 3D engine developer's code) can interact with the map,
-       e.g. re-centering once real blueprint GPS metadata is parsed.
+       Expose instance + helper globally so other scripts can interact.
     -------------------------------------------------------------- */
     window.tacticalMap = map;
     window.tacticalTargetMarker = targetMarker;
@@ -118,11 +112,11 @@
       }
     };
 
-    /* Leaflet needs a resize nudge if its container was hidden/animated
-       during initial layout (common inside flex/grid shells). */
+    /* Leaflet needs immediate and delayed resize nudges for CSS flex/grid layout */
+    map.invalidateSize();
     setTimeout(function () {
-      map.invalidateSize();
-    }, 200);
+      map.invalidateSize(true);
+    }, 250);
 
     return map;
   }
