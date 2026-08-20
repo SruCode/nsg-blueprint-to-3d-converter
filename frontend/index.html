@@ -1,0 +1,261 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIH1773 :: 2D-to-3D Tactical Blueprint Converter</title>
+ 
+  <!-- ============================================================
+       LOCAL STYLES
+  ============================================================= -->
+  <link rel="stylesheet" href="css/style.css" />
+ 
+  <!-- ============================================================
+       THIRD-PARTY LIBRARIES (CDN)
+       - Three.js r128  : 3D rendering engine for the walkthrough
+       - PointerLockControls : FPS-style camera control (WASD look)
+       - Leaflet.js v1.9.4    : Offline-capable GIS / satellite map
+  ============================================================= -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+</head>
+<body>
+  <!-- ============================================================
+       APP SHELL — two column tactical dashboard
+  ============================================================= -->
+  <div class="app-shell">
+ 
+    <!-- ==========================================================
+         LEFT SIDEBAR — Mission Control Panel (fixed 320px)
+    =========================================================== -->
+    <aside class="sidebar">
+ 
+      <!-- Tactical header / branding + system status -->
+      <header class="sidebar__header">
+        <div class="brand">
+          <span class="brand__mark">SIH</span>
+          <div class="brand__text">
+            <h1 class="brand__title">1773 // BLUEPRINT-3D</h1>
+            <p class="brand__subtitle">Tactical Reconstruction Suite</p>
+          </div>
+        </div>
+ 
+        <div class="status-pill" id="systemStatus">
+          <span class="status-pill__dot"></span>
+          <span class="status-pill__label">OFFLINE READY</span>
+        </div>
+      </header>
+ 
+      <div class="sidebar__scroll">
+ 
+        <!-- ======================================================
+             SECTION 01 — Blueprint Ingest
+        ======================================================= -->
+        <section class="panel">
+          <h2 class="panel__title"><span class="panel__index">01</span> Blueprint Ingest</h2>
+ 
+          <label class="field">
+            <span class="field__label">Source File <span class="field__hint">.png / .jpg / .pdf</span></span>
+            <div class="file-drop" id="fileDropZone">
+              <input
+                type="file"
+                id="blueprintInput"
+                class="file-drop__input"
+                accept=".png,.jpg,.jpeg,.pdf"
+              />
+              <div class="file-drop__body">
+                <svg class="file-drop__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="file-drop__text" id="fileDropText">Drop blueprint or click to browse</span>
+              </div>
+            </div>
+          </label>
+ 
+          <div class="file-status" id="fileStatus" aria-live="polite"></div>
+        </section>
+ 
+        <!-- ======================================================
+             SECTION 02 — Extrusion Parameters
+        ======================================================= -->
+        <section class="panel">
+          <h2 class="panel__title"><span class="panel__index">02</span> Extrusion Parameters</h2>
+ 
+          <label class="field">
+            <span class="field__label">Wall Height <span class="field__unit">(meters)</span></span>
+            <div class="input-row">
+              <input
+                type="number"
+                id="wallHeight"
+                class="text-input"
+                value="3.0"
+                min="0.1"
+                step="0.1"
+              />
+              <span class="input-row__suffix">m</span>
+            </div>
+          </label>
+ 
+          <label class="field">
+            <span class="field__label">Wall Thickness <span class="field__unit">(meters)</span></span>
+            <div class="input-row">
+              <input
+                type="number"
+                id="wallThickness"
+                class="text-input"
+                value="0.2"
+                min="0.01"
+                step="0.01"
+              />
+              <span class="input-row__suffix">m</span>
+            </div>
+          </label>
+        </section>
+ 
+        <!-- ======================================================
+             SECTION 03 — Execute
+        ======================================================= -->
+        <section class="panel">
+          <h2 class="panel__title"><span class="panel__index">03</span> Execute</h2>
+ 
+          <button type="button" id="processButton" class="btn-primary">
+            <svg class="btn-primary__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 3l14 9-14 9V3z" stroke-linejoin="round" stroke-linecap="round"/>
+            </svg>
+            Process &amp; Extrude 3D
+          </button>
+ 
+          <div class="progress-track" id="progressTrack" hidden>
+            <div class="progress-track__fill" id="progressFill"></div>
+          </div>
+          <p class="processing-log" id="processingLog" aria-live="polite"></p>
+        </section>
+ 
+        <!-- ======================================================
+             SECTION 04 — Controls Cheatsheet
+        ======================================================= -->
+        <section class="panel panel--cheatsheet">
+          <h2 class="panel__title"><span class="panel__index">04</span> Walkthrough Controls</h2>
+ 
+          <ul class="keymap">
+            <li class="keymap__row">
+              <span class="keymap__keys">
+                <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+              </span>
+              <span class="keymap__desc">Move through structure</span>
+            </li>
+            <li class="keymap__row">
+              <span class="keymap__keys"><kbd class="kbd--wide">MOUSE</kbd></span>
+              <span class="keymap__desc">Look around</span>
+            </li>
+            <li class="keymap__row">
+              <span class="keymap__keys"><kbd>SPACE</kbd></span>
+              <span class="keymap__desc">Ascend / elevate</span>
+            </li>
+            <li class="keymap__row">
+              <span class="keymap__keys"><kbd>SHIFT</kbd></span>
+              <span class="keymap__desc">Descend / lower</span>
+            </li>
+            <li class="keymap__row">
+              <span class="keymap__keys"><kbd>ESC</kbd></span>
+              <span class="keymap__desc">Unlock cursor</span>
+            </li>
+          </ul>
+        </section>
+ 
+      </div>
+ 
+      <footer class="sidebar__footer">
+        <span class="sidebar__footer-text">SMART INDIA HACKATHON // PROBLEM ID 1773</span>
+      </footer>
+    </aside>
+ 
+    <!-- ==========================================================
+         MAIN CONTENT — Scrollable operations view
+    =========================================================== -->
+    <main class="main-content">
+ 
+      <!-- ======================================================
+           TOP CARD — 3D Tactical Walkthrough Engine
+      ======================================================= -->
+      <section class="card">
+        <header class="card__header">
+          <div class="card__heading">
+            <h2 class="card__title">3D Tactical Walkthrough Engine</h2>
+            <p class="card__subtitle">Real-time extruded structure — pointer-lock navigation</p>
+          </div>
+          <div class="card__badge" id="engineBadge">
+            <span class="card__badge-dot"></span>
+            AWAITING INPUT
+          </div>
+        </header>
+ 
+        <div class="viewport" id="threejs-container">
+          <div class="viewport__placeholder" id="threejsPlaceholder">
+            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1" class="viewport__placeholder-icon">
+              <path d="M24 4l18 10v20L24 44 6 34V14L24 4z" stroke-linejoin="round"/>
+              <path d="M24 4v40M6 14l18 10 18-10" stroke-linejoin="round"/>
+            </svg>
+            <p>NO MODEL LOADED<br /><span>Upload a blueprint and process to generate a 3D reconstruction</span></p>
+          </div>
+        </div>
+ 
+        <div class="viewport-footer">
+          <span class="viewport-footer__item">CLICK VIEWPORT TO ENGAGE POINTER LOCK</span>
+          <span class="viewport-footer__item" id="renderStats">FPS: -- &nbsp;|&nbsp; WALLS: --</span>
+        </div>
+      </section>
+ 
+      <!-- ======================================================
+           BOTTOM CARD — Offline Area Satellite / GIS Map Context
+      ======================================================= -->
+      <section class="card">
+        <header class="card__header">
+          <div class="card__heading">
+            <h2 class="card__title">Offline Area Satellite / GIS Map Context</h2>
+            <p class="card__subtitle">Target coordinates — Delhi NSG HQ sector</p>
+          </div>
+          <div class="card__badge card__badge--static">
+            <span class="card__badge-dot"></span>
+            GIS LINKED
+          </div>
+        </header>
+ 
+        <div class="viewport viewport--map" id="map-container"></div>
+ 
+        <div class="viewport-footer">
+          <span class="viewport-footer__item" id="mapCoords">LAT 28.5422 &nbsp;|&nbsp; LON 77.1260</span>
+          <span class="viewport-footer__item">TILE SOURCE: OSM STANDARD</span>
+        </div>
+      </section>
+ 
+    </main>
+  </div>
+ 
+  <!-- ============================================================
+       SCRIPTS
+  ============================================================= -->
+  <!-- Three.js core (r128) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- PointerLockControls addon, matched to r128 -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+  <!-- Leaflet.js v1.9.4 -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+ 
+  <!-- Local application scripts -->
+  <script src="js/map.js"></script>
+  <script src="js/app.js"></script>
+  <script type="module" src="./js/controls.js"></script>
+</body>
+</html>
+ 
