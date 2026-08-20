@@ -3,7 +3,7 @@ import * as THREE from './libs/three.module.js';
 const WALL_HEIGHT = 3.0;     // 3 meters tall
 const WALL_THICKNESS = 0.2;  // 0.2 meters thick
 
-const container = document.getElementById('scene-container') || document.body;
+const container = document.getElementById('threejs-container') || document.body;
 
 // 1. Scene & Camera Setup
 export const scene = new THREE.Scene();
