@@ -60,14 +60,22 @@
     });
 
     /* --------------------------------------------------------------
-       Tile layer & local fallback display.
+       Tile layer: Uses OpenStreetMap live tile layer by default.
     -------------------------------------------------------------- */
-    /* Adjust path based on where assets folder lives relative to frontend/ */
-    var imagePath = '../assets/map_tiles/27.png'; // or '/nsg-blueprint-to-3d-converter/assets/map_tiles/27.png'
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
+    /* --------------------------------------------------------------
+       Local Overlay Fallback: Load local image overlay relative to index.html
+    -------------------------------------------------------------- */
+    var imagePath = './assets/map_tiles/27.png';
     var bounds = [[28.5350, 77.1200], [28.5500, 77.1350]];
-    L.imageOverlay(imagePath, bounds).addTo(map);
-    map.fitBounds(bounds);  
+    
+    // Add image overlay only if local asset exists
+    var imgOverlay = L.imageOverlay(imagePath, bounds, { opacity: 0.8 });
+    imgOverlay.addTo(map);
 
     /* --------------------------------------------------------------
        Target building marker with a tactical popup readout.

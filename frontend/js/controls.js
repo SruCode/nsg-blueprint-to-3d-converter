@@ -1,5 +1,12 @@
-import { PointerLockControls } from './libs/PointerLockControls.js';
-import { camera, renderer, scene } from './renderer.js';
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+export class CameraControls {
+  constructor(camera, domElement) {
+    this.camera = camera;
+    this.domElement = domElement;
+    // Basic control setup placeholder
+  }
+}
 
 // Attach controls to camera and canvas
 const controls = new PointerLockControls(camera, renderer.domElement);

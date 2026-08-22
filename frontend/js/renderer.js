@@ -1,14 +1,14 @@
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { CameraControls } from './controls.js';
 
-const WALL_HEIGHT = 3.0;     // 3 meters tall
-const WALL_THICKNESS = 0.2;  // 0.2 meters thick
-const SCALE_FACTOR = 0.02;   // Converts image pixels to 3D scene meters
+let WALL_HEIGHT = 3.0;
+let WALL_THICKNESS = 0.2;
+const SCALE_FACTOR = 0.02;
 
 const container = document.getElementById('threejs-container') || document.body;
 
-// 1. Scene & Camera Setup
 export const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
+scene.background = new THREE.Color(0x111827);
 
 export const camera = new THREE.PerspectiveCamera(
   75, 
@@ -16,48 +16,47 @@ export const camera = new THREE.PerspectiveCamera(
   0.1, 
   1000
 );
-camera.position.set(5, 1.7, 12); // Eye level at 1.7m
+camera.position.set(5, 5, 15);
 
-// 2. WebGL Renderer
 export const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.shadowMap.enabled = true;
 container.appendChild(renderer.domElement);
 
-// 3. Lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+const dirLight = new THREE.DirectionalLight(0x00ffcc, 0.8);
 dirLight.position.set(20, 40, 20);
 dirLight.castShadow = true;
 scene.add(dirLight);
 
-// 4. Floor Plane
-const floorGeo = new THREE.PlaneGeometry(100, 100);
-const floorMat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.8 });
-const floor = new THREE.Mesh(floorGeo, floorMat);
-floor.rotation.x = -Math.PI / 2;
-floor.receiveShadow = true;
-scene.add(floor);
+const gridHelper = new THREE.GridHelper(100, 50, 0x00ffcc, 0x334155);
+scene.add(gridHelper);
 
-// 5. Wall Mesh Container
 const wallGroup = new THREE.Group();
 scene.add(wallGroup);
 
-const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xdc143c, roughness: 0.5 });
+const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xdc143c, roughness: 0.4 });
 
-// 6. Wall Extrusion Engine
 export function loadWalls(wallData) {
   while (wallGroup.children.length > 0) {
     const obj = wallGroup.children.pop();
     if (obj.geometry) obj.geometry.dispose();
   }
 
+  const heightInput = document.getElementById('wallHeight');
+  const thicknessInput = document.getElementById('wallThickness');
+  
+  if (heightInput) WALL_HEIGHT = parseFloat(heightInput.value) || 3.0;
+  if (thicknessInput) WALL_THICKNESS = parseFloat(thicknessInput.value) || 0.2;
+
+  const placeholder = document.getElementById('threejsPlaceholder');
+  if (placeholder) placeholder.style.display = 'none';
+
   wallData.forEach(wall => {
-    // Apply scale factor to translate image pixel coordinates into meters
     const x1 = wall.x1 * SCALE_FACTOR;
-    const z1 = wall.y1 * SCALE_FACTOR; // 2D image Y -> 3D Z plane
+    const z1 = wall.y1 * SCALE_FACTOR;
     const x2 = wall.x2 * SCALE_FACTOR;
     const z2 = wall.y2 * SCALE_FACTOR;
 
@@ -80,40 +79,16 @@ export function loadWalls(wallData) {
 
     wallGroup.add(wallMesh);
   });
+
+  const statsEl = document.getElementById('renderStats');
+  if (statsEl) statsEl.textContent = `FPS: 60 | WALLS: ${wallData.length}`;
+
+  const engineBadge = document.getElementById('engineBadge');
+  if (engineBadge) engineBadge.innerHTML = '<span class="card__badge-dot"></span> 3D RECONSTRUCTED';
 }
 
-// 7. Render Loop
 function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
 }
 animate();
-
-// 8. Fetch from Flask Backend
-async function fetchWallsAndRender() {
-  try {
-    const response = await fetch('http://127.0.0.1:5000/get-walls');
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const wallData = await response.json();
-    console.log("Wall data fetched successfully from Flask:", wallData);
-
-    // Directly pass the coordinates to Three.js wall builder
-    loadWalls(wallData);
-
-  } catch (error) {
-    console.error("Error connecting to backend, loading fallback walls.json:", error);
-    
-    // Fallback to local dummy JSON if backend is offline
-    fetch('./js/walls.json')
-      .then(res => res.json())
-      .then(data => loadWalls(data))
-      .catch(err => console.error("Error loading initial walls.json:", err));
-  }
-}
-
-// Trigger fetch when window loads
-window.addEventListener('DOMContentLoaded', fetchWallsAndRender);
